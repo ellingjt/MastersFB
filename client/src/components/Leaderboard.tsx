@@ -1,7 +1,18 @@
 import { useRef, useEffect, useState } from 'react';
-import type { TeamStanding } from '../types';
+import type { TeamStanding, GolferScore } from '../types';
 import type { Shotgun } from '../shotguns';
 import { getTeamStreak } from '../streaks';
+
+function golferHoleLabel(g: GolferScore): string {
+  // Find the latest round with scores
+  for (let r = 3; r >= 0; r--) {
+    const played = g.rounds[r]?.filter(s => s > 0).length ?? 0;
+    if (played > 0) {
+      return played === 18 ? 'F' : String(played);
+    }
+  }
+  return '';
+}
 
 function useRankChanges(standings: TeamStanding[]) {
   const prevOrderRef = useRef<Map<string, number>>(new Map());
@@ -152,15 +163,22 @@ export default function Leaderboard({ standings, onSelectTeam, onSelectPlayer, s
                     )}
                   </div>
                   <div className="text-[11px] text-[var(--text-muted)] mt-0.5 flex flex-wrap items-center gap-x-1">
-                    {team.golfers.map((g, gi) => (
-                      <span key={g.name}>
-                        {gi > 0 && <span className="mr-1">&middot;</span>}
-                        <span
-                          className={`hover:text-[var(--text-primary)] transition-colors cursor-pointer ${g.isCut ? 'line-through opacity-50' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); onSelectPlayer(g.name); }}
-                        >{g.name}</span>
-                      </span>
-                    ))}
+                    {team.golfers.map((g, gi) => {
+                      const hole = golferHoleLabel(g);
+                      return (
+                        <span key={g.name}>
+                          {gi > 0 && <span className="mr-1">&middot;</span>}
+                          <span
+                            className={`hover:text-[var(--text-primary)] transition-colors cursor-pointer ${g.isCut ? 'line-through opacity-50' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); onSelectPlayer(g.name); }}
+                          >
+                            <span className="hidden lg:inline">{g.name}</span>
+                            <span className="lg:hidden">{g.name.split(' ').pop()}</span>
+                            {hole && <span className="text-[var(--text-muted)] ml-0.5">({hole})</span>}
+                          </span>
+                        </span>
+                      );
+                    })}
                   </div>
                 </td>
                 {team.roundPoints.map((rp, rIdx) => (
@@ -233,15 +251,21 @@ export default function Leaderboard({ standings, onSelectTeam, onSelectPlayer, s
                   {streak === 'cold' && <span title="Choking">🥶</span>}
                 </div>
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
-                  {team.golfers.map((g, gi) => (
-                    <span key={g.name}>
-                      {gi > 0 && ' \u00b7 '}
-                      <span
-                        className={`hover:text-[var(--text-primary)] transition-colors ${g.isCut ? 'line-through opacity-50' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); onSelectPlayer(g.name); }}
-                      >{g.name}</span>
-                    </span>
-                  ))}
+                  {team.golfers.map((g, gi) => {
+                    const hole = golferHoleLabel(g);
+                    return (
+                      <span key={g.name}>
+                        {gi > 0 && ' \u00b7 '}
+                        <span
+                          className={`hover:text-[var(--text-primary)] transition-colors ${g.isCut ? 'line-through opacity-50' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); onSelectPlayer(g.name); }}
+                        >
+                          {g.name.split(' ').pop()}
+                          {hole && <span className="text-[var(--text-muted)] ml-0.5">({hole})</span>}
+                        </span>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
               <div className="text-right shrink-0 flex items-center gap-2">

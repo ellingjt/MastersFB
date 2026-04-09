@@ -23,26 +23,6 @@ namespace MastersScores.Hubs
         {
             ConnectedUsers[Context.ConnectionId] = username;
             await Clients.All.SendAsync("UserCountChanged", ConnectedUsers.Values.Distinct().Count());
-
-            var sentAt = DateTimeOffset.UtcNow;
-            var entity = new ChatMessageEntity
-            {
-                PartitionKey = year.ToString(),
-                RowKey = sentAt.Ticks.ToString("D20"),
-                Username = "System",
-                Message = $"{username} joined the chat",
-                Type = "system",
-                SentAt = sentAt,
-            };
-            await _chatClient.UpsertEntityAsync(entity);
-
-            await Clients.Others.SendAsync("ReceiveMessage", new
-            {
-                username = "System",
-                message = $"{username} joined the chat",
-                type = "system",
-                sentAt,
-            });
         }
 
         public async Task ChangeName(string oldName, string newName, int year)

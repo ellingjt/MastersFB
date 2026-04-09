@@ -9,7 +9,7 @@ import ChatPanel from './components/ChatPanel';
 import PlayerRankings from './components/PlayerRankings';
 import { fetchScores, fetchDraftPicks, fetchShotgunState, fetchYearConfig, toggleShotgunComplete } from './api';
 import { calculateStandings } from './scoring';
-import { computeShotguns, getShotgunsByOwner, type ShotgunState } from './shotguns';
+import { computeShotguns, getShotgunsByOwner, detectBogeyWatch, type ShotgunState } from './shotguns';
 import { useTheme } from './useTheme';
 import { useChat } from './useChat';
 import { useShotgunNotifier } from './useShotgunNotifier';
@@ -109,7 +109,8 @@ export default function App() {
 
 
   // Notify chat when new shotguns appear
-  useShotgunNotifier(chat.connection, allShotguns, chat.connected);
+  const bogeyWatches = standings.length > 0 ? detectBogeyWatch(standings) : [];
+  useShotgunNotifier(chat.connection, allShotguns, bogeyWatches, chat.connected);
 
   // Sound effects for birdies/eagles
   useBirdieSounds(scoresQuery.data ?? [], picksQuery.data ?? {});
@@ -154,7 +155,7 @@ export default function App() {
           </div>
         )}
         {!isLoading && !isError && (
-          <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
+          <div className="flex flex-col lg:flex-row gap-4 items-start">
             <div className="flex-1 min-w-0 w-full">
               {selectedTeam ? (
                 <TeamDetail
@@ -184,7 +185,7 @@ export default function App() {
               )}
             </div>
 
-            <div className="w-full lg:w-72 shrink-0 flex flex-col gap-3">
+            <div className="w-full lg:w-72 shrink-0 flex flex-col gap-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]">
               <LiveFeed
                 players={scoresQuery.data ?? []}
                 draftPicks={picksQuery.data ?? {}}

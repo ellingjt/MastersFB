@@ -1,5 +1,5 @@
 import type { TeamStanding } from './types';
-import { computeHoleResults } from './scoring';
+import { computeHoleResults, getPars } from './scoring';
 
 export interface Shotgun {
   id: string;
@@ -35,17 +35,21 @@ export function computeShotguns(
   }
 
   // 2. Team bogey / double bogey (best ball >= par+1 on a hole)
-  // Only counts when all active (non-cut) golfers have played the hole
+  // Only counts when ALL non-cut golfers who have started this round have completed the hole
+  // AND all non-cut golfers have started the round (no one still waiting to tee off)
   for (const team of standings) {
-    const activeGolfers = team.golfers.filter(g => !g.isCut);
+    const nonCutGolfers = team.golfers.filter(g => !g.isCut);
     for (let r = 0; r < 4; r++) {
       const hasScores = team.golfers.some(g => g.rounds[r]?.some(s => s > 0));
       if (!hasScores) continue;
+      // All non-cut golfers must have started this round
+      const allStarted = nonCutGolfers.every(g => g.rounds[r]?.some(s => s > 0));
+      if (!allStarted) continue;
       const holeResults = computeHoleResults(team.golfers, r);
       for (const h of holeResults) {
         if (h.bestScore === null) continue;
-        // Check all active golfers have a score for this hole
-        const allPlayed = activeGolfers.every(g => (g.rounds[r]?.[h.hole - 1] ?? 0) > 0);
+        // All non-cut golfers must have played this specific hole
+        const allPlayed = nonCutGolfers.every(g => (g.rounds[r]?.[h.hole - 1] ?? 0) > 0);
         if (!allPlayed) continue;
         const diff = h.bestScore - h.par;
         if (diff === 1) {
@@ -112,4 +116,56 @@ export function getShotgunsByOwner(shotguns: Shotgun[]): Map<string, { total: nu
   }
 
   return map;
+}
+
+export interface BogeyWatch {
+  id: string;
+  owner: string;
+  round: number;
+  hole: number;
+  lastGolfer: string;
+}
+
+/**
+ * Detect "Team Bogey Watch" — all but 1 active (non-cut) golfer have played
+ * a hole and all scored bogey or worse. The last golfer needs to save it.
+ * Only triggers if the team has at least 2 active golfers.
+ */
+export function detectBogeyWatch(standings: TeamStanding[]): BogeyWatch[] {
+  const pars = getPars();
+  const watches: BogeyWatch[] = [];
+
+  for (const team of standings) {
+    const nonCut = team.golfers.filter(g => !g.isCut);
+    if (nonCut.length < 2) continue;
+
+    for (let r = 0; r < 4; r++) {
+      for (let h = 0; h < 18; h++) {
+        const scores = nonCut.map(g => ({
+          name: g.name,
+          score: g.rounds[r]?.[h] ?? 0,
+        }));
+
+        const played = scores.filter(s => s.score > 0);
+        const notPlayed = scores.filter(s => s.score === 0);
+
+        // All but 1 active golfer have played, exactly 1 left
+        if (notPlayed.length !== 1 || played.length < 1) continue;
+
+        // All who played scored bogey or worse
+        const allBogeyOrWorse = played.every(s => s.score > pars[h]);
+        if (!allBogeyOrWorse) continue;
+
+        watches.push({
+          id: `bogeywatch_${team.owner}_R${r + 1}H${h + 1}`,
+          owner: team.owner,
+          round: r + 1,
+          hole: h + 1,
+          lastGolfer: notPlayed[0].name,
+        });
+      }
+    }
+  }
+
+  return watches;
 }
