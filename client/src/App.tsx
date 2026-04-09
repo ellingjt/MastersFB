@@ -29,9 +29,14 @@ export default function App() {
   const queryClient = useQueryClient();
   const chatRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<{ focus: () => void }>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [chatVisible, setChatVisible] = useState(false);
   const [chatInputFocused, setChatInputFocused] = useState(false);
+  const [lastSeenCount, setLastSeenCountRaw] = useState(() => {
+    return parseInt(localStorage.getItem('masters-chat-seen') ?? '0', 10);
+  });
+  const setLastSeenCount = useCallback((n: number) => {
+    setLastSeenCountRaw(n);
+    localStorage.setItem('masters-chat-seen', String(n));
+  }, []);
 
   const setSelectedTeam = useCallback((team: string | null) => {
     setSelectedTeamRaw(team);
@@ -54,19 +59,6 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // Track chat visibility with IntersectionObserver
-  useEffect(() => {
-    if (!chatRef.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setChatVisible(entry.isIntersecting);
-        if (entry.isIntersecting) setUnreadCount(0);
-      },
-      { threshold: 0.3 },
-    );
-    observer.observe(chatRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   const configQuery = useQuery({
     queryKey: ['config', CURRENT_YEAR],
@@ -115,14 +107,6 @@ export default function App() {
   // Chat
   const chat = useChat(!isLoading);
 
-  // Track unread messages when chat is not visible
-  const prevMsgCountRef = useRef(0);
-  useEffect(() => {
-    if (chat.messages.length > prevMsgCountRef.current && !chatVisible) {
-      setUnreadCount(prev => prev + (chat.messages.length - prevMsgCountRef.current));
-    }
-    prevMsgCountRef.current = chat.messages.length;
-  }, [chat.messages.length, chatVisible]);
 
   // Notify chat when new shotguns appear
   useShotgunNotifier(chat.connection, allShotguns, chat.connected);
@@ -142,7 +126,7 @@ export default function App() {
 
   const scrollToChat = () => {
     chatRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setUnreadCount(0);
+    setLastSeenCount(chat.messages.length);
     // Try focusing repeatedly until the scroll completes
     const tryFocus = (attempts: number) => {
       if (attempts <= 0) return;
@@ -217,7 +201,10 @@ export default function App() {
                 onJoin={chat.joinChat}
                 onChangeName={chat.changeName}
                 onReconnect={chat.reconnect}
-                onInputFocusChange={setChatInputFocused}
+                onInputFocusChange={(focused) => {
+                  setChatInputFocused(focused);
+                  if (focused) setLastSeenCount(chat.messages.length);
+                }}
               />
               </div>
             </div>
@@ -226,7 +213,7 @@ export default function App() {
       </main>
 
       {/* Floating chat badge */}
-      {!chatVisible && !chatInputFocused && (
+      {!chatInputFocused && (
         <button
           onClick={scrollToChat}
           className="fixed bottom-5 right-5 w-12 h-12 rounded-full bg-[var(--masters-green)] text-white shadow-lg flex items-center justify-center cursor-pointer border-none hover:scale-110 transition-transform z-50"
@@ -234,9 +221,9 @@ export default function App() {
           <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
             <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z" />
           </svg>
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-cyan-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
+          {chat.messages.length > lastSeenCount && (
+            <span className="absolute -top-1 -right-1 bg-cyan-500 text-white text-[10px] font-bold min-w-5 h-5 px-1 rounded-full flex items-center justify-center">
+              {chat.messages.length - lastSeenCount > 99 ? '99+' : chat.messages.length - lastSeenCount}
             </span>
           )}
         </button>

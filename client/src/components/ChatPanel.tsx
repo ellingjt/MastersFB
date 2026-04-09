@@ -23,15 +23,16 @@ const ChatPanel = forwardRef<{ focus: () => void }, Props>(function ChatPanel(
   const [isPickingName, setIsPickingName] = useState(() => !localStorage.getItem(USERNAME_KEY));
   const [nameInput, setNameInput] = useState('');
   const [draft, setDraft] = useState('');
-  const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
   }));
 
+  const messagesRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = messagesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   const saveName = useCallback(() => {
@@ -101,8 +102,8 @@ const ChatPanel = forwardRef<{ focus: () => void }, Props>(function ChatPanel(
   }
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden flex flex-col flex-1">
-      <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden flex flex-col flex-1 min-h-0">
+      <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-1.5">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] m-0">Chat</h2>
           {activeUsers > 0 && (
@@ -121,7 +122,7 @@ const ChatPanel = forwardRef<{ focus: () => void }, Props>(function ChatPanel(
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto sidebar-scroll relative">
+      <div ref={messagesRef} className="flex-1 overflow-y-auto sidebar-scroll relative max-h-[300px] lg:max-h-[400px]">
         {disconnected && (
           <div className="sticky top-0 z-10 bg-red-500/10 border-b border-red-500/20 px-3 py-2 flex items-center justify-between">
             <span className="text-[11px] text-red-400">Disconnected</span>
@@ -142,14 +143,15 @@ const ChatPanel = forwardRef<{ focus: () => void }, Props>(function ChatPanel(
               <span className="text-[10px] text-[var(--text-muted)] italic">{msg.message}</span>
             </div>
           ) : (
-            <div key={i} className="px-3 py-1.5 flex gap-2 text-xs hover:bg-[var(--bg-card-hover)]">
-              <span className="font-semibold text-[var(--gold)] shrink-0">{msg.username}</span>
-              <span className="text-[var(--text-primary)] break-words min-w-0">{msg.message}</span>
-              <span className="text-[10px] text-[var(--text-muted)] shrink-0 ml-auto self-start">{formatTime(msg.sentAt)}</span>
+            <div key={i} className="px-3 py-1.5 text-xs hover:bg-[var(--bg-card-hover)]">
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-semibold text-[var(--gold)]">{msg.username}</span>
+                <span className="text-[10px] text-[var(--text-muted)]">{formatTime(msg.sentAt)}</span>
+              </div>
+              <div className="text-[var(--text-primary)] break-words mt-0.5">{msg.message}</div>
             </div>
           )
         ))}
-        <div ref={bottomRef} />
       </div>
 
       <div className="border-t border-[var(--border)] p-2 shrink-0">

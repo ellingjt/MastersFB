@@ -221,8 +221,14 @@ export default function Leaderboard({ standings, onSelectTeam, onSelectPlayer, s
                   <span className={`font-semibold text-sm ${isFirst ? 'text-[var(--gold)]' : 'text-[var(--text-primary)]'}`}>
                     {team.owner}
                   </span>
-                  {isFirst && <span className="text-[10px] text-[var(--gold-dim)]">( . )( . )</span>}
-                  {isLast && <span className="text-[10px] text-[var(--text-muted)]">8====D</span>}
+                  {isFirst && (
+                    <span className="text-[10px] font-bold text-[var(--gold)] bg-[var(--gold)]/10 border border-[var(--gold)]/25 px-1 py-0.5 rounded">( . )( . )</span>
+                  )}
+                  {isLast && (
+                    <span className="text-[10px] font-bold border border-[var(--badge-border)] px-1 py-0.5 rounded bg-[var(--badge-bg)]">
+                      <span style={{ backgroundImage: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>8====D</span>
+                    </span>
+                  )}
                   {streak === 'hot' && <span title="Heating up">🔥</span>}
                   {streak === 'cold' && <span title="Choking">🥶</span>}
                 </div>

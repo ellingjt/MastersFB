@@ -35,13 +35,18 @@ export function computeShotguns(
   }
 
   // 2. Team bogey / double bogey (best ball >= par+1 on a hole)
+  // Only counts when all active (non-cut) golfers have played the hole
   for (const team of standings) {
+    const activeGolfers = team.golfers.filter(g => !g.isCut);
     for (let r = 0; r < 4; r++) {
       const hasScores = team.golfers.some(g => g.rounds[r]?.some(s => s > 0));
       if (!hasScores) continue;
       const holeResults = computeHoleResults(team.golfers, r);
       for (const h of holeResults) {
         if (h.bestScore === null) continue;
+        // Check all active golfers have a score for this hole
+        const allPlayed = activeGolfers.every(g => (g.rounds[r]?.[h.hole - 1] ?? 0) > 0);
+        if (!allPlayed) continue;
         const diff = h.bestScore - h.par;
         if (diff === 1) {
           shotguns.push({
