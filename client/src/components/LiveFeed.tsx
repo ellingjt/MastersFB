@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { Player, DraftPicks } from '../types';
 import { detectBirdiesAndEagles } from '../scoring';
 
@@ -15,59 +15,94 @@ function labelStyle(label: string) {
   return 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/25';
 }
 
+interface FeedEvent {
+  key: string;
+  owner: string;
+  golfer: string;
+  hole: number;
+  round: number;
+  label: string;
+}
+
 function eventKey(e: { golfer: string; hole: number; round: number }) {
   return `${e.golfer}_R${e.round}H${e.hole}`;
 }
 
+const STORAGE_KEY = 'masters-live-feed';
+
+function loadStoredFeed(): FeedEvent[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+function saveStoredFeed(feed: FeedEvent[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(feed));
+}
+
 export default function LiveFeed({ players, draftPicks, onSelectPlayer }: Props) {
-  const events = detectBirdiesAndEagles(players, draftPicks);
-  const prevKeysRef = useRef<Set<string>>(new Set());
+  const rawEvents = detectBirdiesAndEagles(players, draftPicks);
+  const [feed, setFeed] = useState<FeedEvent[]>(loadStoredFeed);
+  const [newKeys, setNewKeys] = useState<Set<string>>(new Set());
+  const initializedRef = useRef(false);
 
-  // Identify new events and sort them to the top
-  const { sorted, newKeys } = useMemo(() => {
-    const currentKeys = new Set(events.map(eventKey));
-    const prev = prevKeysRef.current;
-    const fresh = new Set<string>();
+  useEffect(() => {
+    if (rawEvents.length === 0) return;
 
-    // Only mark as new if we've seen a previous set (not first load)
-    if (prev.size > 0) {
-      for (const k of currentKeys) {
-        if (!prev.has(k)) fresh.add(k);
+    const currentKeys = new Set(rawEvents.map(eventKey));
+    const feedKeys = new Set(feed.map(e => e.key));
+
+    // Find genuinely new events (in current data but not in our stored feed)
+    const newEvents: FeedEvent[] = [];
+    for (const e of rawEvents) {
+      const k = eventKey(e);
+      if (!feedKeys.has(k)) {
+        newEvents.push({ key: k, owner: e.owner, golfer: e.golfer, hole: e.hole, round: e.round, label: e.label });
       }
     }
 
-    prevKeysRef.current = currentKeys;
+    // Remove events that are no longer in the data (e.g. score correction)
+    const surviving = feed.filter(e => currentKeys.has(e.key));
 
-    // New events first, then the rest in chronological order
-    const sorted = [...events].sort((a, b) => {
-      const aNew = fresh.has(eventKey(a)) ? 1 : 0;
-      const bNew = fresh.has(eventKey(b)) ? 1 : 0;
-      if (aNew !== bNew) return bNew - aNew;
-      return a.recency - b.recency || (b.par - b.score) - (a.par - a.score);
-    });
+    if (newEvents.length > 0 || surviving.length !== feed.length) {
+      // Sort new events by recency before prepending
+      const recencyMap = new Map(rawEvents.map(e => [eventKey(e), e.recency]));
+      newEvents.sort((a, b) => (recencyMap.get(a.key) ?? 0) - (recencyMap.get(b.key) ?? 0));
 
-    return { sorted, newKeys: fresh };
-  }, [events]);
+      const updated = [...newEvents, ...surviving];
+      setFeed(updated);
+      saveStoredFeed(updated);
+
+      // Only flash if not first load
+      if (initializedRef.current) {
+        setNewKeys(new Set(newEvents.map(e => e.key)));
+        setTimeout(() => setNewKeys(new Set()), 2000);
+      }
+    }
+
+    initializedRef.current = true;
+  }, [rawEvents]);
 
   return (
     <div className="rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-card)] flex flex-col">
       <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] m-0">Live Feed</h2>
-        {events.length > 0 && (
-          <span className="text-[10px] text-[var(--text-muted)] tabular-nums">{events.length}</span>
+        {feed.length > 0 && (
+          <span className="text-[10px] text-[var(--text-muted)] tabular-nums">{feed.length}</span>
         )}
       </div>
-      {events.length === 0 ? (
+      {feed.length === 0 ? (
         <div className="px-3 py-8 text-center text-xs text-[var(--text-muted)]">
           No birdies or eagles yet.
         </div>
       ) : (
         <div className="divide-y divide-[var(--border)]/50 overflow-y-auto max-h-[200px] lg:max-h-[30vh] sidebar-scroll">
-          {sorted.map((e, idx) => {
-            const isNew = newKeys.has(eventKey(e));
+          {feed.map((e) => {
+            const isNew = newKeys.has(e.key);
             return (
               <div
-                key={idx}
+                key={e.key}
                 className={`px-3 py-2 flex items-center gap-2 text-xs hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer ${isNew ? 'animate-flash-green' : ''}`}
                 onClick={() => onSelectPlayer(e.golfer)}
               >

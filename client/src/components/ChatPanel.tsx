@@ -3,6 +3,45 @@ import type { ChatMessage } from '../useChat';
 
 const USERNAME_KEY = 'masters-chat-username';
 
+const TITS_BADGE = <span className="not-italic text-[10px] font-bold text-[var(--gold)] bg-[var(--gold)]/10 border border-[var(--gold)]/25 px-1 py-0.5 rounded">( . )( . )</span>;
+const DICK_BADGE = <span className="not-italic text-[10px] font-bold border border-[var(--badge-border)] px-1 py-0.5 rounded bg-[var(--badge-bg)]"><span style={{ backgroundImage: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>8====D</span></span>;
+
+function renderSystemMessage(text: string): React.ReactNode {
+  // Split on ( . )( . ) and 8====D and replace with styled badges
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+
+  while (remaining.length > 0) {
+    const titsIdx = remaining.indexOf('( . )( . )');
+    const dickIdx = remaining.indexOf('8====D');
+
+    // Find whichever comes first
+    let nextIdx = -1;
+    let badge: React.ReactNode = null;
+    let matchLen = 0;
+
+    if (titsIdx >= 0 && (dickIdx < 0 || titsIdx < dickIdx)) {
+      nextIdx = titsIdx; badge = TITS_BADGE; matchLen = 10;
+    } else if (dickIdx >= 0) {
+      nextIdx = dickIdx; badge = DICK_BADGE; matchLen = 6;
+    }
+
+    if (nextIdx < 0) {
+      parts.push(<span key={key++}>{remaining}</span>);
+      break;
+    }
+
+    if (nextIdx > 0) {
+      parts.push(<span key={key++}>{remaining.slice(0, nextIdx)}</span>);
+    }
+    parts.push(<span key={key++}>{badge}</span>);
+    remaining = remaining.slice(nextIdx + matchLen);
+  }
+
+  return <>{parts}</>;
+}
+
 interface Props {
   messages: ChatMessage[];
   connected: boolean;
@@ -140,7 +179,7 @@ const ChatPanel = forwardRef<{ focus: () => void }, Props>(function ChatPanel(
         {messages.map((msg, i) => (
           msg.type === 'system' ? (
             <div key={i} className="px-3 py-1.5 text-center">
-              <span className="text-[10px] text-[var(--text-muted)] italic">{msg.message}</span>
+              <span className="text-[10px] text-[var(--text-muted)] italic">{renderSystemMessage(msg.message)}</span>
             </div>
           ) : (
             <div key={i} className="px-3 py-1.5 text-xs hover:bg-[var(--bg-card-hover)]">

@@ -13,6 +13,7 @@ import { computeShotguns, getShotgunsByOwner, detectBogeyWatch, type ShotgunStat
 import { useTheme } from './useTheme';
 import { useChat } from './useChat';
 import { useShotgunNotifier } from './useShotgunNotifier';
+import { useLeaderNotifier } from './useLeaderNotifier';
 import { useBirdieSounds } from './useBirdieSounds';
 import { isMuted, toggleMute } from './sounds';
 import { CURRENT_YEAR } from './constants';
@@ -111,6 +112,7 @@ export default function App() {
   // Notify chat when new shotguns appear
   const bogeyWatches = standings.length > 0 ? detectBogeyWatch(standings) : [];
   useShotgunNotifier(chat.connection, allShotguns, bogeyWatches, chat.connected);
+  useLeaderNotifier(chat.connection, standings, chat.connected);
 
   // Sound effects for birdies/eagles
   useBirdieSounds(scoresQuery.data ?? [], picksQuery.data ?? {});
