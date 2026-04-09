@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+/* Dark theme (default) */
+:root, [data-theme="dark"] {
+  --bg-primary: #0c1a14;
+  --bg-card: #132a1f;
+  --bg-card-hover: #1a3829;
+  --bg-elevated: #1e4030;
+  --bg-header: #0a1510;
+  --border: #1e3a2b;
+  --border-light: #2a4d3a;
+
+  --text-primary: #edf1ee;
+  --text-secondary: #b0bfb6;
+  --text-muted: #7a9488;
+
+  --masters-green: #006747;
+  --masters-green-light: #00895e;
+  --gold: #c8a951;
+  --gold-light: #dcc274;
+  --gold-dim: #9a8340;
+  --gold-bg: rgba(200, 169, 81, 0.08);
+
+  --birdie: #22d3ee;
+  --eagle: #d4a017;
+  --bogey: rgba(255, 255, 255, 0.06);
+
+  --badge-bg: rgba(255, 255, 255, 0.05);
+  --badge-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --bg-primary: #f1f5f2;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f7f3;
+  --bg-elevated: #e8f0eb;
+  --bg-header: #006747;
+  --border: #d4ddd7;
+  --border-light: #c0cec4;
+
+  --text-primary: #1a2e22;
+  --text-secondary: #4a6b55;
+  --text-muted: #7a9484;
+
+  --masters-green: #006747;
+  --masters-green-light: #00895e;
+  --gold: #a68a3a;
+  --gold-light: #c8a951;
+  --gold-dim: #8a7330;
+  --gold-bg: rgba(166, 138, 58, 0.08);
+
+  --birdie: #0891b2;
+  --eagle: #a68a3a;
+  --bogey: rgba(0, 0, 0, 0.04);
+
+  --badge-bg: rgba(0, 0, 0, 0.05);
+  --badge-border: rgba(0, 0, 0, 0.1);
+}
+
+/* Light theme header needs light text since bg is dark green */
+[data-theme="light"] header {
+  --text-primary: #e8ede9;
+  --text-muted: #8fa898;
+  --border: #005538;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+/* Thin custom scrollbar for sidebar panels */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 2px;
+}
+
+/* Rank change animations */
+@keyframes flash-green {
+  0% { background-color: rgba(16, 185, 129, 0.2); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-red {
+  0% { background-color: rgba(239, 68, 68, 0.15); }
+  100% { background-color: transparent; }
+}
+.animate-flash-green { animation: flash-green 2s ease-out; }
+.animate-flash-red { animation: flash-red 2s ease-out; }

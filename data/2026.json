@@ -1,0 +1,41 @@
+{
+  "year": 2026,
+  "draftPicks": {
+    "Dan F": ["Scottie Scheffler", "Akshay Bhatia", "Si Woo Kim", "Harris English"],
+    "Josh": ["Bryson DeChambeau", "Chris Gotterup", "Corey Conners", "Daniel Berger"],
+    "Rich": ["Xander Schauffele", "Sepp Straka", "Tyrrell Hatton", "Cameron Smith"],
+    "Matt": ["Jon Rahm", "Patrick Reed", "Viktor Hovland", "Sungjae Im"],
+    "Dan S": ["Rory McIlroy", "Russell Henley", "Patrick Cantlay", "Maverick McNealy"],
+    "Cory": ["Tommy Fleetwood", "Collin Morikawa", "Justin Thomas", "Sam Burns"],
+    "Seth": ["Ludvig Aberg", "Min Woo Lee", "Jordan Spieth", "Jacob Bridgeman"],
+    "Bill": ["Cameron Young", "Hideki Matsuyama", "Nicolai Hojgaard", "J.J. Spaun"],
+    "Eric": ["Matt Fitzpatrick", "Brooks Koepka", "Shane Lowry", "Jason Day"],
+    "Dan R": ["Justin Rose", "Robert MacIntyre", "Jake Knapp", "Adam Scott"]
+  },
+  "preTournamentShotguns": [
+    { "id": "pre_danf_opening",    "owner": "Dan F", "reason": "Opening Ceremony", "count": 1 },
+    { "id": "pre_cory_draftdelay", "owner": "Cory",  "reason": "Draft Delay",      "count": 1 },
+    { "id": "pre_seth_duck2",      "owner": "Seth",  "reason": "Duck Race #2",      "count": 1 },
+    { "id": "pre_seth_duck3",      "owner": "Seth",  "reason": "Duck Race #3",      "count": 1 },
+    { "id": "pre_seth_duck5",      "owner": "Seth",  "reason": "Duck Race #5",      "count": 1 },
+    { "id": "pre_seth_duck6",      "owner": "Seth",  "reason": "Duck Race #6",      "count": 1 },
+    { "id": "pre_bill_duck7",      "owner": "Bill",  "reason": "Duck Race #7",      "count": 1 },
+    { "id": "pre_eric_duck1",      "owner": "Eric",  "reason": "Duck Race #1",      "count": 1 },
+    { "id": "pre_danr_duck4",      "owner": "Dan R", "reason": "Duck Race #4",      "count": 1 },
+    { "id": "pre_danr_duck8",      "owner": "Dan R", "reason": "Duck Race #8",      "count": 1 },
+    { "id": "pre_danr_duck9",      "owner": "Dan R", "reason": "Duck Race #9",      "count": 1 }
+  ],
+  "history": [
+    { "year": 2025, "first": "Bill",  "last": ["Seth"] },
+    { "year": 2024, "first": "Dan R", "last": ["Rich"] },
+    { "year": 2023, "first": "Bill",  "last": ["Cory"] },
+    { "year": 2022, "first": "Dan F", "last": ["Dan R"] },
+    { "year": 2021, "first": "Rich",  "last": ["Cory"] },
+    { "year": 2020, "first": "Eric",  "last": [] },
+    { "year": 2019, "first": "Josh",  "last": ["Dan R"] },
+    { "year": 2018, "first": "Seth",  "last": ["Dan R", "Cory"] },
+    { "year": 2017, "first": "Dan F", "last": ["Seth"] },
+    { "year": 2016, "first": "Rich",  "last": [] },
+    { "year": 2015, "first": "Dan R", "last": [], "firstNote": "Late addition — got to select a duplicate player from each round" }
+  ]
+}

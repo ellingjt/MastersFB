@@ -1,0 +1,29 @@
+# .NET
+bin/
+obj/
+publish/
+*.user
+*.suo
+
+# IDE
+.vs/
+.vscode/
+*.swp
+
+# Build artifacts
+deploy.zip
+wwwroot/
+
+# Node / React
+client/node_modules/
+client/dist/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code
+.claude/
+
+# Secrets (connection strings are in Azure, not committed)
+appsettings.Development.json
