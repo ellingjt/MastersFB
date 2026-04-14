@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import type { TeamStanding } from '../types';
+import type { TeamStanding, GolferScore } from '../types';
 import type { Shotgun } from '../shotguns';
 import type { YearConfig } from '../api';
 import { computeHoleResults } from '../scoring';
 import { getTrophies } from '../history';
 import Scorecard from './Scorecard';
+
+
+function nextRound(g: GolferScore): number {
+  for (let r = 0; r < 4; r++) {
+    const played = g.rounds[r]?.filter(s => s > 0).length ?? 0;
+    if (played < 18) return r + 1;
+  }
+  return 4;
+}
 
 interface Props {
   standings: TeamStanding[];
@@ -14,9 +23,10 @@ interface Props {
   completedIds: string[];
   onToggleShotgun: (id: string, completed: boolean) => void;
   history: YearConfig['history'];
+  winProbability: number | null;
 }
 
-export default function TeamDetail({ standings, owner, onBack, shotguns, completedIds, onToggleShotgun, history }: Props) {
+export default function TeamDetail({ standings, owner, onBack, shotguns, completedIds, onToggleShotgun, history, winProbability }: Props) {
   const team = standings.find(s => s.owner === owner);
 
   if (!team) {
@@ -31,6 +41,8 @@ export default function TeamDetail({ standings, owner, onBack, shotguns, complet
   }
 
   const rank = standings.indexOf(team) + 1;
+
+  const winProb = winProbability;
 
   // Count each golfer's point contributions across all rounds
   const contributions = new Map<string, number>();
@@ -63,9 +75,33 @@ export default function TeamDetail({ standings, owner, onBack, shotguns, complet
             <h2 className="text-xl font-bold text-[var(--text-primary)] m-0">{team.owner}</h2>
             <p className="text-xs text-[var(--text-muted)] mt-1">Rank #{rank} of {standings.length}</p>
           </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold text-[var(--gold)] tabular-nums leading-none">{team.totalPoints}</div>
-            <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1">total pts</div>
+          <div className="flex items-center gap-4">
+            {winProb !== null && (() => {
+              const pct = winProb;
+              const color = pct >= 25 ? 'text-[var(--gold)]'
+                : pct >= 10 ? 'text-emerald-400'
+                : pct >= 2 ? 'text-[var(--text-secondary)]'
+                : 'text-[var(--text-muted)]';
+              const barColor = pct >= 25 ? 'bg-[var(--gold)]'
+                : pct >= 10 ? 'bg-emerald-400'
+                : pct >= 2 ? 'bg-[var(--text-secondary)]'
+                : 'bg-[var(--text-muted)]';
+              return (
+                <div className="text-center">
+                  <div className={`text-2xl font-bold tabular-nums leading-none ${color}`}>
+                    {pct.toFixed(1)}%
+                  </div>
+                  <div className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] mt-1">win prob</div>
+                  <div className="w-16 h-1 rounded-full bg-[var(--border)] mt-1.5 overflow-hidden">
+                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="text-right">
+              <div className="text-3xl font-bold text-[var(--gold)] tabular-nums leading-none">{team.totalPoints}</div>
+              <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1">total pts</div>
+            </div>
           </div>
         </div>
 
@@ -97,13 +133,26 @@ export default function TeamDetail({ standings, owner, onBack, shotguns, complet
                 {g.isCut && (
                   <span className="text-[9px] font-bold uppercase bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded tracking-wider">Cut</span>
                 )}
-                {!g.isCut && g.holesPlayed === 0 && g.teeTime && (
-                  <span className="text-[10px] text-[var(--gold)] font-medium">{g.teeTime}</span>
-                )}
+                {!g.isCut && (() => {
+                  const currentRd = nextRound(g) - 1; // 0-indexed current round
+                  const holesInCurrentRd = g.rounds[currentRd]?.filter(s => s > 0).length ?? 0;
+                  const isPlaying = holesInCurrentRd > 0 && holesInCurrentRd < 18;
+                  const allDone = !g.teeTime && g.rounds[3]?.filter(s => s > 0).length === 18;
+
+                  if (isPlaying) {
+                    return <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Thru {holesInCurrentRd}</span>;
+                  } else if (allDone) {
+                    return <span className="text-[10px] text-[var(--text-muted)] font-medium">Finished</span>;
+                  } else if (g.teeTime) {
+                    return <span className="text-[10px] text-[var(--gold)] font-medium">R{nextRound(g)} {g.teeTime}</span>;
+                  }
+                  // Finished current round but next hasn't started
+                  return <span className="text-[10px] text-[var(--text-muted)] font-medium">Finished R{currentRd + 1}</span>;
+                })()}
               </div>
               <div className="text-[11px] text-[var(--text-muted)] mt-1">
-                {g.holesPlayed === 0 && g.teeTime
-                  ? 'Hasn\u2019t teed off'
+                {g.teeTime
+                  ? `${g.holesPlayed} holes played` + (contributions.get(g.name) ? ` \u00b7 ${contributions.get(g.name)} pts` : '')
                   : `${g.holesPlayed} holes` + (contributions.get(g.name) ? ` \u00b7 ${contributions.get(g.name)} pts contributed` : '')
                 }
               </div>
@@ -119,20 +168,53 @@ export default function TeamDetail({ standings, owner, onBack, shotguns, complet
       <ShotgunTracker shotguns={shotguns} completedIds={completedIds} onToggle={onToggleShotgun} />
 
       {/* Scorecards per round */}
-      {[0, 1, 2, 3].map(roundIdx => {
-        const hasScores = team.golfers.some(g => g.rounds[roundIdx]?.some(s => s > 0));
-        if (!hasScores) return null;
-        const holeResults = computeHoleResults(team.golfers, roundIdx);
-        return (
-          <Scorecard
-            key={roundIdx}
-            roundNumber={roundIdx + 1}
-            holeResults={holeResults}
-            golfers={team.golfers}
-            roundPoints={team.roundPoints[roundIdx]}
-          />
-        );
-      })}
+      {(() => {
+        // Determine the "current" round:
+        // - The upcoming round with tee times if previous round is complete, OR
+        // - The latest round with scores if no upcoming round
+        let currentRound = -1;
+
+        // Check for upcoming round (has tee times, previous round complete)
+        for (let r = 1; r <= 3; r++) {
+          const prevComplete = team.golfers.some(g =>
+            !g.isCut && (g.rounds[r - 1]?.filter(s => s > 0).length ?? 0) === 18
+          );
+          const thisHasScores = team.golfers.some(g => g.rounds[r]?.some(s => s > 0));
+          const hasTeeTime = team.golfers.some(g => !g.isCut && g.teeTime);
+          if (!thisHasScores && prevComplete && hasTeeTime) {
+            currentRound = r;
+            break;
+          }
+        }
+
+        // Fall back to latest round with scores
+        if (currentRound === -1) {
+          for (let r = 3; r >= 0; r--) {
+            if (team.golfers.some(g => g.rounds[r]?.some(s => s > 0))) {
+              currentRound = r;
+              break;
+            }
+          }
+        }
+
+        return [0, 1, 2, 3].map(roundIdx => {
+          const hasScores = team.golfers.some(g => g.rounds[roundIdx]?.some(s => s > 0));
+          const isUpcoming = roundIdx === currentRound && !hasScores;
+          if (!hasScores && !isUpcoming) return null;
+          const holeResults = computeHoleResults(team.golfers, roundIdx);
+          const shouldCollapse = roundIdx !== currentRound;
+          return (
+            <Scorecard
+              key={roundIdx}
+              roundNumber={roundIdx + 1}
+              holeResults={holeResults}
+              golfers={team.golfers}
+              roundPoints={team.roundPoints[roundIdx]}
+              defaultCollapsed={shouldCollapse}
+            />
+          );
+      });
+      })()}
     </div>
   );
 }
@@ -262,6 +344,16 @@ function TrophyCase({ owner, history }: { owner: string; history: YearConfig['hi
             className="flex items-center gap-1.5 rounded-md border border-[var(--gold)]/25 bg-[var(--gold-bg)] px-3 py-1.5"
           >
             <span className="text-sm font-bold text-[var(--gold)]">( . )( . )</span>
+            <span className="text-xs font-semibold text-[var(--gold)] tabular-nums">
+              {t.year}{t.note && <span className="cursor-help" title={t.note}>*</span>}
+            </span>
+          </div>
+        ) : t.type === 'co-first' ? (
+          <div
+            key={`cw-${t.year}`}
+            className="flex items-center gap-1.5 rounded-md border border-[var(--gold)]/25 bg-[var(--gold-bg)] px-3 py-1.5"
+          >
+            <span className="text-sm font-bold text-[var(--gold)]">( . )</span>
             <span className="text-xs font-semibold text-[var(--gold)] tabular-nums">
               {t.year}{t.note && <span className="cursor-help" title={t.note}>*</span>}
             </span>

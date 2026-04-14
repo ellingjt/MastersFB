@@ -10,6 +10,7 @@ export default defineConfig({
       '/draftpicks': 'https://jellingson.azurewebsites.net',
       '/shotguns': 'https://jellingson.azurewebsites.net',
       '/config': 'https://jellingson.azurewebsites.net',
+      '/winprobability': 'https://jellingson.azurewebsites.net',
       '/chat': 'https://jellingson.azurewebsites.net',
       '/hubs': {
         target: 'https://jellingson.azurewebsites.net',

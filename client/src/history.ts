@@ -2,7 +2,7 @@ import type { YearConfig } from './api';
 
 export interface Trophy {
   year: number;
-  type: 'first' | 'last';
+  type: 'first' | 'co-first' | 'last';
   note?: string;
 }
 
@@ -10,8 +10,10 @@ export function getTrophies(owner: string, history: YearConfig['history']): Trop
   const trophies: Trophy[] = [];
 
   for (const h of history) {
-    if (h.first === owner) {
-      trophies.push({ year: h.year, type: 'first', note: h.firstNote });
+    const firsts = Array.isArray(h.first) ? h.first : [h.first];
+    if (firsts.includes(owner)) {
+      const type = firsts.length > 1 ? 'co-first' : 'first';
+      trophies.push({ year: h.year, type, note: h.firstNote });
     }
     if (h.last.includes(owner)) {
       trophies.push({ year: h.year, type: 'last' });

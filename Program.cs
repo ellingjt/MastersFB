@@ -18,6 +18,7 @@ builder.Services.AddHttpClient("masters", client =>
 });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddSignalR().AddAzureSignalR();
+builder.Services.AddSingleton<MastersScores.Services.NotificationService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

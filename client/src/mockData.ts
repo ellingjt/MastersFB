@@ -57,7 +57,6 @@ export function getMockScores(): Player[] {
     const isCut = cutGolfers.has(name);
 
     if (isCut) {
-      // Cut: full R1+R2, no R3/R4
       return {
         fullName: name,
         round1: generateRound(18),
@@ -65,6 +64,8 @@ export function getMockScores(): Player[] {
         round3: EMPTY_ROUND,
         round4: EMPTY_ROUND,
         teeTime: '',
+        toPar: `+${Math.floor(Math.random() * 5) + 5}`,
+        status: 'CUT',
       };
     }
 
@@ -77,6 +78,8 @@ export function getMockScores(): Player[] {
       round3: hasStartedR3 ? generateRound(10) : EMPTY_ROUND,
       round4: EMPTY_ROUND,
       teeTime: hasStartedR3 ? '' : teeTimes[lateIdx % teeTimes.length],
+      toPar: `${Math.floor(Math.random() * 10) - 5}`,
+      status: 'A',
     };
   });
 

@@ -3,12 +3,35 @@ import type { TeamStanding, GolferScore } from '../types';
 import type { Shotgun } from '../shotguns';
 import { getTeamStreak } from '../streaks';
 
+function getTeamHolesPlayed(team: TeamStanding): { played: number; remaining: number } {
+  let totalPlayed = 0;
+  let totalRemaining = 0;
+  for (const g of team.golfers) {
+    const played = g.rounds.reduce((sum, rd) => sum + (rd?.filter(s => s > 0).length ?? 0), 0);
+    totalPlayed += played;
+    if (g.isCut) {
+      // Cut golfers won't play more — no remaining
+    } else {
+      totalRemaining += 72 - played;
+    }
+  }
+  return { played: totalPlayed, remaining: totalRemaining };
+}
+
 function golferHoleLabel(g: GolferScore): string {
   // Find the latest round with scores
   for (let r = 3; r >= 0; r--) {
     const played = g.rounds[r]?.filter(s => s > 0).length ?? 0;
     if (played > 0) {
-      return played === 18 ? 'F' : String(played);
+      if (played === 18) {
+        // Check if there's a next round they haven't started yet
+        if (r < 3 && (g.rounds[r + 1]?.filter(s => s > 0).length ?? 0) === 0) {
+          // Finished this round but hasn't started next — if they have a tee time, show nothing
+          if (g.teeTime) return '';
+        }
+        return 'F';
+      }
+      return String(played);
     }
   }
   return '';
@@ -107,10 +130,6 @@ export default function Leaderboard({ standings, onSelectTeam, onSelectPlayer, s
           <tr className="text-left text-[11px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)]">
             <th className="px-4 py-2.5 w-10 text-center">#</th>
             <th className="px-4 py-2.5">Team</th>
-            <th className="px-3 py-2.5 text-center w-14">R1</th>
-            <th className="px-3 py-2.5 text-center w-14">R2</th>
-            <th className="px-3 py-2.5 text-center w-14">R3</th>
-            <th className="px-3 py-2.5 text-center w-14">R4</th>
             <th className="px-3 py-2.5 text-center w-16">Pts</th>
             <th className="px-3 py-2.5 text-center w-20">SG</th>
           </tr>
@@ -180,12 +199,23 @@ export default function Leaderboard({ standings, onSelectTeam, onSelectPlayer, s
                       );
                     })}
                   </div>
+                  {(() => {
+                    const { remaining } = getTeamHolesPlayed(team);
+                    const maxPossible = 4 * 72;
+                    const pct = (maxPossible - remaining) / maxPossible;
+                    return (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-[var(--text-muted)] transition-all duration-500"
+                            style={{ width: `${pct * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-[var(--text-muted)] tabular-nums shrink-0">{remaining} left</span>
+                      </div>
+                    );
+                  })()}
                 </td>
-                {team.roundPoints.map((rp, rIdx) => (
-                  <td key={rIdx} className="px-3 py-2.5 text-center tabular-nums text-[var(--text-secondary)]">
-                    {rp > 0 ? rp : <span className="text-[var(--text-muted)]">&ndash;</span>}
-                  </td>
-                ))}
                 <td className="px-3 py-2.5 text-center">
                   <span className={`font-bold tabular-nums text-base ${isFirst ? 'text-[var(--gold)]' : 'text-[var(--text-primary)]'}`}>
                     {team.totalPoints}
@@ -225,17 +255,18 @@ export default function Leaderboard({ standings, onSelectTeam, onSelectPlayer, s
             <div
               key={team.owner}
               onClick={() => onSelectTeam(team.owner)}
-              className={`px-4 py-3 flex items-center gap-3 cursor-pointer active:bg-[var(--bg-card-hover)] transition-all duration-500 ${
+              className={`px-4 py-3 cursor-pointer active:bg-[var(--bg-card-hover)] transition-all duration-500 ${
                 isFirst ? 'bg-[var(--gold-bg)]' : ''
               } ${movedUp ? 'animate-flash-green' : ''} ${movedDown ? 'animate-flash-red' : ''}`}
             >
+            <div className="flex items-center gap-3">
               <div className={`text-sm font-bold w-6 text-center shrink-0 flex flex-col items-center ${isFirst ? 'text-[var(--gold)]' : 'text-[var(--text-muted)]'}`}>
                 {movedUp && <span className="text-emerald-400 text-[8px] leading-none">&#9650;</span>}
                 <span>{idx + 1}</span>
                 {movedDown && <span className="text-red-400 text-[8px] leading-none">&#9660;</span>}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className={`font-semibold text-sm ${isFirst ? 'text-[var(--gold)]' : 'text-[var(--text-primary)]'}`}>
                     {team.owner}
                   </span>
@@ -249,6 +280,20 @@ export default function Leaderboard({ standings, onSelectTeam, onSelectPlayer, s
                   )}
                   {streak === 'hot' && <span title="Heating up">🔥</span>}
                   {streak === 'cold' && <span title="Choking">🥶</span>}
+                  {(() => {
+                    const data = shotgunsByOwner.get(team.owner);
+                    if (!data || data.total === 0) return null;
+                    const icons = data.shotguns.flatMap(s =>
+                      Array.from({ length: s.count }, (_, i) => (
+                        <BeerIcon key={`${s.id}_${i}`} completed={completedIds.includes(s.id)} />
+                      ))
+                    );
+                    return (
+                      <span className="inline-flex items-center gap-0.5 flex-wrap ml-1">
+                        {icons}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
                   {team.golfers.map((g, gi) => {
@@ -268,31 +313,28 @@ export default function Leaderboard({ standings, onSelectTeam, onSelectPlayer, s
                   })}
                 </div>
               </div>
-              <div className="text-right shrink-0 flex items-center gap-2">
-                {(() => {
-                  const data = shotgunsByOwner.get(team.owner);
-                  if (!data || data.total === 0) return null;
-                  return (
-                    <div className="flex items-center gap-0.5">
-                      {data.shotguns.flatMap(s =>
-                        Array.from({ length: s.count }, (_, i) => (
-                          <BeerIcon key={`${s.id}_${i}`} completed={completedIds.includes(s.id)} />
-                        ))
-                      )}
-                    </div>
-                  );
-                })()}
-                <div>
-                  <div className={`font-bold tabular-nums text-lg leading-none ${isFirst ? 'text-[var(--gold)]' : 'text-[var(--text-primary)]'}`}>
-                    {team.totalPoints}
-                  </div>
-                  <div className="text-[10px] text-[var(--text-muted)] mt-0.5 tabular-nums">
-                    {team.roundPoints.filter(r => r > 0).length > 0
-                      ? team.roundPoints.map(r => r > 0 ? r : '\u2013').join(' / ')
-                      : 'No scores'}
-                  </div>
+              <div className="text-right shrink-0">
+                <div className={`font-bold tabular-nums text-lg leading-none ${isFirst ? 'text-[var(--gold)]' : 'text-[var(--text-primary)]'}`}>
+                  {team.totalPoints}
                 </div>
               </div>
+            </div>
+            {(() => {
+              const { remaining } = getTeamHolesPlayed(team);
+              const maxPossible = 4 * 72;
+              const pct = (maxPossible - remaining) / maxPossible;
+              return (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex-1 h-1 rounded-full bg-[var(--border)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--text-muted)] transition-all duration-500"
+                      style={{ width: `${pct * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[9px] text-[var(--text-muted)] tabular-nums shrink-0 whitespace-nowrap">{remaining} left</span>
+                </div>
+              );
+            })()}
             </div>
           );
         })}

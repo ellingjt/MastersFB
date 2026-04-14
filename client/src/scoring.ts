@@ -31,10 +31,8 @@ function buildGolferScore(player: Player): GolferScore {
     }
   }
 
-  const r1Complete = rounds[0].filter(s => s > 0).length === 18;
-  const r2Complete = rounds[1].filter(s => s > 0).length === 18;
-  const r3HasScores = rounds[2].some(s => s > 0);
-  const isCut = r1Complete && r2Complete && !r3HasScores && holesPlayed <= 36;
+  // Use masters.com official status: "C" = cut
+  const isCut = player.status === 'C';
 
   return {
     name: player.fullName,
@@ -170,13 +168,13 @@ function getGolferTotalHolesPlayed(player: Player): number {
 export function detectBirdiesAndEagles(
   players: Player[],
   draftPicks: DraftPicks,
-): { owner: string; golfer: string; hole: number; round: number; score: number; par: number; label: string; recency: number; apiOrder: number }[] {
+): { owner: string; golfer: string; hole: number; round: number; score: number; par: number; label: string; recency: number; apiOrder: number; totalPlayed: number }[] {
   const playerMap = new Map<string, { player: Player; apiIndex: number }>();
   players.forEach((p, i) => {
     playerMap.set(p.fullName.toLowerCase(), { player: p, apiIndex: i });
   });
 
-  const events: { owner: string; golfer: string; hole: number; round: number; score: number; par: number; label: string; recency: number; apiOrder: number }[] = [];
+  const events: { owner: string; golfer: string; hole: number; round: number; score: number; par: number; label: string; recency: number; apiOrder: number; totalPlayed: number }[] = [];
 
   for (const [owner, golferNames] of Object.entries(draftPicks)) {
     for (const name of golferNames) {
@@ -194,14 +192,15 @@ export function detectBirdiesAndEagles(
             const label = diff === 1 ? 'Birdie' : diff === 2 ? 'Eagle' : 'Albatross';
             const eventGlobal = rIdx * 18 + (hIdx + 1);
             const holesAgo = totalHolesPlayed - eventGlobal;
-            events.push({ owner, golfer: name, hole: hIdx + 1, round: rIdx + 1, score, par: PARS[hIdx], label, recency: holesAgo, apiOrder: apiIndex });
+            events.push({ owner, golfer: name, hole: hIdx + 1, round: rIdx + 1, score, par: PARS[hIdx], label, recency: holesAgo, apiOrder: apiIndex, totalPlayed: totalHolesPlayed });
           }
         });
       });
     }
   }
 
-  // Sort by recency (lowest = most recent), then API order for ties (lower = higher in feed), then eagles before birdies
-  events.sort((a, b) => a.recency - b.recency || a.apiOrder - b.apiOrder || (b.par - b.score) - (a.par - a.score));
+  // Sort: highest round first, then recency within round (lowest = most recent),
+  // then API order for ties, then eagles before birdies
+  events.sort((a, b) => b.round - a.round || a.recency - b.recency || a.apiOrder - b.apiOrder || (b.par - b.score) - (a.par - a.score));
   return events;
 }

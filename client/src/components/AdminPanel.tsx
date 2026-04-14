@@ -75,6 +75,22 @@ export default function AdminPanel() {
     addLog(`Assigned tits shotgun to "${name}"`);
   };
 
+  const checkPolling = async () => {
+    const res = await fetch('/masters/polling');
+    const data = await res.json();
+    addLog(`Polling is ${data.enabled ? 'ENABLED' : 'DISABLED'}`);
+  };
+
+  const togglePolling = async (enabled: boolean) => {
+    const res = await fetch('/masters/polling', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
+    const data = await res.json();
+    addLog(`Polling ${data.enabled ? 'ENABLED' : 'DISABLED'}`);
+  };
+
   const viewConfig = async () => {
     const res = await fetch(`/config/${CURRENT_YEAR}`);
     const data = await res.json();
@@ -90,6 +106,13 @@ export default function AdminPanel() {
         </div>
 
         <div className="space-y-4">
+          {/* Polling */}
+          <Section title="Masters.com Polling">
+            <Btn onClick={checkPolling}>Check status</Btn>
+            <Btn onClick={() => togglePolling(true)}>Enable polling</Btn>
+            <Btn onClick={() => togglePolling(false)} color="red">Disable polling</Btn>
+          </Section>
+
           {/* Chat */}
           <Section title="Chat">
             <Btn onClick={clearChat} color="red">Clear all chat messages</Btn>

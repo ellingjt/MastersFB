@@ -10,13 +10,11 @@ namespace MastersScores.Hubs
     public class ChatHub : Hub
     {
         private readonly TableClient _chatClient;
-        private readonly TableClient _notificationsClient;
         private static readonly ConcurrentDictionary<string, string> ConnectedUsers = new();
 
         public ChatHub(TableStorageService tableStorage)
         {
             _chatClient = tableStorage.GetChatMessagesClient();
-            _notificationsClient = tableStorage.GetTableClient("ShotgunNotifications");
         }
 
         public async Task JoinChat(string username, int year)
@@ -80,40 +78,6 @@ namespace MastersScores.Hubs
                 username,
                 message,
                 type = "user",
-                sentAt,
-            });
-        }
-
-        public async Task NotifyShotgun(string shotgunId, string message, int year)
-        {
-            try
-            {
-                await _notificationsClient.GetEntityAsync<TableEntity>(year.ToString(), shotgunId);
-                return;
-            }
-            catch (RequestFailedException ex) when (ex.Status == 404)
-            {
-            }
-
-            await _notificationsClient.UpsertEntityAsync(new TableEntity(year.ToString(), shotgunId));
-
-            var sentAt = DateTimeOffset.UtcNow;
-            var chatEntity = new ChatMessageEntity
-            {
-                PartitionKey = year.ToString(),
-                RowKey = sentAt.Ticks.ToString("D20"),
-                Username = "System",
-                Message = message,
-                Type = "system",
-                SentAt = sentAt,
-            };
-            await _chatClient.UpsertEntityAsync(chatEntity);
-
-            await Clients.All.SendAsync("ReceiveMessage", new
-            {
-                username = "System",
-                message,
-                type = "system",
                 sentAt,
             });
         }

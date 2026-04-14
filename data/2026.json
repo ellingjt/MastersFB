@@ -26,6 +26,7 @@
     { "id": "pre_danr_duck9",      "owner": "Dan R", "reason": "Duck Race #9",      "count": 1 }
   ],
   "history": [
+    { "year": 2026, "first": ["Cory", "Eric"], "last": ["Josh"] },
     { "year": 2025, "first": "Bill",  "last": ["Seth"] },
     { "year": 2024, "first": "Dan R", "last": ["Rich"] },
     { "year": 2023, "first": "Bill",  "last": ["Cory"] },

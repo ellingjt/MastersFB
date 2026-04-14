@@ -21,6 +21,8 @@ namespace MastersScores.Services
             await _serviceClient.CreateTableIfNotExistsAsync("DraftPicks");
             await _serviceClient.CreateTableIfNotExistsAsync("Shotguns");
             await _serviceClient.CreateTableIfNotExistsAsync("ShotgunNotifications");
+            await _serviceClient.CreateTableIfNotExistsAsync("NotificationState");
+            await _serviceClient.CreateTableIfNotExistsAsync("WinProbHistory");
         }
     }
 }

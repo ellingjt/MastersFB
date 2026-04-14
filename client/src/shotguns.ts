@@ -71,8 +71,10 @@ export function computeShotguns(
     }
   }
 
-  // 3. Ending with the Dick (last place) — only after tournament is complete (R4 has scores)
-  const tournamentComplete = standings.some(t => t.golfers.some(g => g.rounds[3]?.some(s => s > 0)));
+  // 3. Ending with the Dick (last place) — only after ALL non-cut golfers have completed R4
+  const tournamentComplete = standings.length > 0 && standings.every(t =>
+    t.golfers.every(g => g.isCut || g.rounds[3]?.filter(s => s > 0).length === 18)
+  );
   if (tournamentComplete && standings.length > 0) {
     const topScore = standings[0].totalPoints;
     const bottomScore = standings[standings.length - 1].totalPoints;
@@ -136,12 +138,13 @@ export function detectBogeyWatch(standings: TeamStanding[]): BogeyWatch[] {
   const watches: BogeyWatch[] = [];
 
   for (const team of standings) {
-    const nonCut = team.golfers.filter(g => !g.isCut);
-    if (nonCut.length < 2) continue;
-
     for (let r = 0; r < 4; r++) {
+      // Only consider golfers who have started this round (have at least 1 score)
+      const inRound = team.golfers.filter(g => !g.isCut && g.rounds[r]?.some(s => s > 0));
+      if (inRound.length < 2) continue;
+
       for (let h = 0; h < 18; h++) {
-        const scores = nonCut.map(g => ({
+        const scores = inRound.map(g => ({
           name: g.name,
           score: g.rounds[r]?.[h] ?? 0,
         }));
@@ -149,7 +152,7 @@ export function detectBogeyWatch(standings: TeamStanding[]): BogeyWatch[] {
         const played = scores.filter(s => s.score > 0);
         const notPlayed = scores.filter(s => s.score === 0);
 
-        // All but 1 active golfer have played, exactly 1 left
+        // All but 1 golfer in this round have played the hole, exactly 1 left
         if (notPlayed.length !== 1 || played.length < 1) continue;
 
         // All who played scored bogey or worse

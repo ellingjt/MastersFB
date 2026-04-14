@@ -19,7 +19,7 @@ namespace MastersScores.Models
     public class HistoryEntry
     {
         public int Year { get; set; }
-        public string First { get; set; } = default!;
+        public System.Text.Json.JsonElement First { get; set; }
         public List<string> Last { get; set; } = new();
         public string? FirstNote { get; set; }
     }

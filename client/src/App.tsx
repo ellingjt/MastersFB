@@ -7,13 +7,14 @@ import TeamDetail from './components/TeamDetail';
 import LiveFeed from './components/LiveFeed';
 import ChatPanel from './components/ChatPanel';
 import PlayerRankings from './components/PlayerRankings';
-import { fetchScores, fetchDraftPicks, fetchShotgunState, fetchYearConfig, toggleShotgunComplete } from './api';
+import CutWatch from './components/CutWatch';
+import WinProbChart from './components/WinProbChart';
+import TournamentOverlay from './components/TournamentOverlay';
+import { fetchScores, fetchDraftPicks, fetchShotgunState, fetchYearConfig, fetchTournamentState, toggleShotgunComplete } from './api';
 import { calculateStandings } from './scoring';
-import { computeShotguns, getShotgunsByOwner, detectBogeyWatch, type ShotgunState } from './shotguns';
+import { computeShotguns, getShotgunsByOwner, type ShotgunState } from './shotguns';
 import { useTheme } from './useTheme';
 import { useChat } from './useChat';
-import { useShotgunNotifier } from './useShotgunNotifier';
-import { useLeaderNotifier } from './useLeaderNotifier';
 import { useBirdieSounds } from './useBirdieSounds';
 import { isMuted, toggleMute } from './sounds';
 import { CURRENT_YEAR } from './constants';
@@ -73,6 +74,12 @@ export default function App() {
     refetchInterval: 45_000,
   });
 
+  const tournamentQuery = useQuery({
+    queryKey: ['tournament'],
+    queryFn: fetchTournamentState,
+    refetchInterval: 45_000,
+  });
+
   const picksQuery = useQuery({
     queryKey: ['draftPicks', CURRENT_YEAR],
     queryFn: () => fetchDraftPicks(CURRENT_YEAR),
@@ -83,6 +90,16 @@ export default function App() {
     queryKey: ['shotgunState', CURRENT_YEAR],
     queryFn: () => fetchShotgunState(CURRENT_YEAR),
     staleTime: 30_000,
+  });
+
+  const winProbQuery = useQuery({
+    queryKey: ['winProbHistory', CURRENT_YEAR],
+    queryFn: async () => {
+      const res = await fetch(`/winprobability/${CURRENT_YEAR}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 60_000,
   });
 
   const isLoading = scoresQuery.isLoading || picksQuery.isLoading || configQuery.isLoading;
@@ -108,11 +125,30 @@ export default function App() {
   // Chat
   const chat = useChat(!isLoading);
 
+  // Track unread messages for tab title
+  const tabActiveRef = useRef(!document.hidden);
+  const tabSeenCountRef = useRef(0);
 
-  // Notify chat when new shotguns appear
-  const bogeyWatches = standings.length > 0 ? detectBogeyWatch(standings) : [];
-  useShotgunNotifier(chat.connection, allShotguns, bogeyWatches, chat.connected);
-  useLeaderNotifier(chat.connection, standings, chat.connected);
+  useEffect(() => {
+    const onVisibility = () => {
+      tabActiveRef.current = !document.hidden;
+      if (!document.hidden) {
+        tabSeenCountRef.current = chat.messages.length;
+        document.title = 'Masters for Beers';
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [chat.messages.length]);
+
+  useEffect(() => {
+    if (tabActiveRef.current) {
+      tabSeenCountRef.current = chat.messages.length;
+    } else {
+      const unread = chat.messages.length - tabSeenCountRef.current;
+      document.title = unread > 0 ? `(${unread}) Masters for Beers` : 'Masters for Beers';
+    }
+  }, [chat.messages.length]);
 
   // Sound effects for birdies/eagles
   useBirdieSounds(scoresQuery.data ?? [], picksQuery.data ?? {});
@@ -120,6 +156,26 @@ export default function App() {
   const onToggleShotgun = async (id: string, completed: boolean) => {
     await toggleShotgunComplete(CURRENT_YEAR, id, completed);
     queryClient.invalidateQueries({ queryKey: ['shotgunState'] });
+  };
+
+  // Get latest win probability for a team from the stored snapshots
+  const tournamentOver = standings.length > 0 && standings.every(t =>
+    t.golfers.every(g => g.isCut || g.rounds[3]?.filter(s => s > 0).length === 18)
+  );
+
+  const getWinProb = (owner: string): number | null => {
+    // When tournament is over, compute directly (winners get 100%)
+    if (tournamentOver && standings.length > 0) {
+      const topScore = standings[0].totalPoints;
+      return standings.find(s => s.owner === owner)?.totalPoints === topScore ? 100 : 0;
+    }
+    const history = winProbQuery.data;
+    if (!history || history.length === 0) return null;
+    const latest = history[history.length - 1];
+    try {
+      const data = typeof latest.data === 'string' ? JSON.parse(latest.data) : latest.data;
+      return data[owner]?.winProb ?? null;
+    } catch { return null; }
   };
 
   const selectPlayer = (golferName: string) => {
@@ -168,6 +224,7 @@ export default function App() {
                   completedIds={shotgunState.completedIds}
                   onToggleShotgun={onToggleShotgun}
                   history={config?.history ?? []}
+                  winProbability={getWinProb(selectedTeam!)}
                 />
               ) : (
                 <div className="space-y-4">
@@ -178,6 +235,14 @@ export default function App() {
                     shotgunsByOwner={shotgunsByOwner}
                     completedIds={shotgunState.completedIds}
                   />
+                  {tournamentQuery.data && picksQuery.data && (
+                    <CutWatch
+                      tournament={tournamentQuery.data}
+                      draftPicks={picksQuery.data}
+                      onSelectPlayer={selectPlayer}
+                    />
+                  )}
+                  <WinProbChart />
                   <PlayerRankings
                     players={scoresQuery.data ?? []}
                     draftPicks={picksQuery.data ?? {}}
@@ -214,6 +279,15 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Tournament winner overlay */}
+      <TournamentOverlay
+        standings={standings}
+        show={
+          new URLSearchParams(window.location.search).has('beta') ||
+          tournamentOver
+        }
+      />
 
       {/* Floating chat badge */}
       {!chatInputFocused && (

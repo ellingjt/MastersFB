@@ -66,9 +66,14 @@ export default function LiveFeed({ players, draftPicks, onSelectPlayer }: Props)
     const surviving = feed.filter(e => currentKeys.has(e.key));
 
     if (newEvents.length > 0 || surviving.length !== feed.length) {
-      // Sort new events by recency before prepending
-      const recencyMap = new Map(rawEvents.map(e => [eventKey(e), e.recency]));
-      newEvents.sort((a, b) => (recencyMap.get(a.key) ?? 0) - (recencyMap.get(b.key) ?? 0));
+      // Sort new events by recency before prepending (match main sort order)
+      const eventMap = new Map(rawEvents.map(e => [eventKey(e), e]));
+      newEvents.sort((a, b) => {
+        const ea = eventMap.get(a.key);
+        const eb = eventMap.get(b.key);
+        if (!ea || !eb) return 0;
+        return eb.round - ea.round || ea.recency - eb.recency || ea.apiOrder - eb.apiOrder || (eb.par - eb.score) - (ea.par - ea.score);
+      });
 
       const updated = [...newEvents, ...surviving];
       setFeed(updated);

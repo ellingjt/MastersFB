@@ -5,6 +5,14 @@ export interface Player {
   round3: string;
   round4: string;
   teeTime: string;
+  toPar: string;
+  status: string;
+}
+
+export interface TournamentState {
+  currentRound: number;
+  players: Player[];
+  projectedCutLine: number | null;
 }
 
 export interface TeamStanding {

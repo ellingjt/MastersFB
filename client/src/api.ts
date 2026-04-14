@@ -1,4 +1,4 @@
-import type { Player, DraftPicks } from './types';
+import type { Player, DraftPicks, TournamentState } from './types';
 import type { ShotgunState, Shotgun } from './shotguns';
 import { getMockScores, getMockDraftPicks } from './mockData';
 
@@ -6,7 +6,7 @@ export interface YearConfig {
   year: number;
   draftPicks: DraftPicks;
   preTournamentShotguns: Shotgun[];
-  history: { year: number; first: string; last: string[]; firstNote?: string }[];
+  history: { year: number; first: string | string[]; last: string[]; firstNote?: string }[];
 }
 
 const BASE_URL = '';
@@ -17,6 +17,13 @@ export async function fetchScores(): Promise<Player[]> {
   if (useMock()) return getMockScores();
   const res = await fetch(`${BASE_URL}/masters`);
   if (!res.ok) throw new Error(`Scores fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchTournamentState(): Promise<TournamentState> {
+  if (useMock()) return { currentRound: 2, players: getMockScores(), projectedCutLine: 4 };
+  const res = await fetch(`${BASE_URL}/masters/tournament`);
+  if (!res.ok) throw new Error(`Tournament state fetch failed: ${res.status}`);
   return res.json();
 }
 
@@ -46,6 +53,7 @@ export async function fetchYearConfig(year: number): Promise<YearConfig> {
         { id: 'pre_danr_duck9',      owner: 'Dan R', reason: 'Duck Race #9',      count: 1 },
       ],
       history: [
+        { year: 2026, first: ['Cory', 'Eric'], last: ['Josh'] },
         { year: 2025, first: 'Bill',  last: ['Seth'] },
         { year: 2024, first: 'Dan R', last: ['Rich'] },
         { year: 2023, first: 'Bill',  last: ['Cory'] },

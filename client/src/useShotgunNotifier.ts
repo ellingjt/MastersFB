@@ -25,14 +25,40 @@ export function useShotgunNotifier(
     const currentIds = new Set(shotguns.map(s => s.id));
     const prevIds = prevIdsRef.current;
 
+    // Group new shotguns by owner to batch cut notifications
+    const newByOwner = new Map<string, Shotgun[]>();
     for (const s of shotguns) {
       if (s.id.startsWith('pre_')) continue;
       if (!prevIds.has(s.id)) {
+        if (!newByOwner.has(s.owner)) newByOwner.set(s.owner, []);
+        newByOwner.get(s.owner)!.push(s);
+      }
+    }
+
+    for (const [owner, ownerShotguns] of newByOwner) {
+      const cuts = ownerShotguns.filter(s => s.id.startsWith('cut_'));
+      const others = ownerShotguns.filter(s => !s.id.startsWith('cut_'));
+
+      // Send grouped cut notification
+      if (cuts.length > 0) {
+        const names = cuts.map(s => s.reason.replace(' missed the cut', ''));
+        const count = cuts.length;
+        const msg = count === 1
+          ? `🍺 ${owner} owes a shotgun — ${names[0]} missed the cut`
+          : `🍺 ${owner} owes ${count} shotguns — ${names.join(', ')} missed the cut`;
+        const id = `cut_batch_${owner}_${cuts.map(s => s.id).sort().join('_')}`;
+        connection.invoke('NotifyShotgun', id, msg, CURRENT_YEAR).catch(() => {});
+        playBeerSound();
+      }
+
+      // Send individual non-cut notifications
+      for (const s of others) {
         const msg = formatShotgunMessage(s);
         connection.invoke('NotifyShotgun', s.id, msg, CURRENT_YEAR).catch(() => {});
         playBeerSound();
       }
     }
+
     prevIdsRef.current = currentIds;
 
     // Bogey watch notifications

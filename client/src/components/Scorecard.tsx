@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { GolferScore, HoleResult } from '../types';
 import { getPars } from '../scoring';
 
@@ -6,6 +7,7 @@ interface Props {
   holeResults: HoleResult[];
   golfers: GolferScore[];
   roundPoints: number;
+  defaultCollapsed?: boolean;
 }
 
 function scoreColor(diff: number): string {
@@ -81,7 +83,8 @@ function ScoreCell({ score, par }: { score: number; par: number }) {
   );
 }
 
-export default function Scorecard({ roundNumber, holeResults, golfers, roundPoints }: Props) {
+export default function Scorecard({ roundNumber, holeResults, golfers, roundPoints, defaultCollapsed = false }: Props) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const pars = getPars();
   const front9 = holeResults.slice(0, 9);
   const back9 = holeResults.slice(9, 18);
@@ -92,11 +95,17 @@ export default function Scorecard({ roundNumber, holeResults, golfers, roundPoin
 
   return (
     <div className="rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-card)]">
-      <div className="px-4 py-3 flex justify-between items-center border-b border-[var(--border)]">
-        <h3 className="text-sm font-semibold m-0 text-[var(--text-secondary)]">Round {roundNumber}</h3>
+      <div
+        className="px-4 py-3 flex justify-between items-center border-b border-[var(--border)] cursor-pointer hover:bg-[var(--bg-card-hover)] transition-colors"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <div className="flex items-center gap-2">
+          <span className={`text-[var(--text-muted)] text-xs transition-transform ${collapsed ? '' : 'rotate-90'}`}>&#9654;</span>
+          <h3 className="text-sm font-semibold m-0 text-[var(--text-secondary)]">Round {roundNumber}</h3>
+        </div>
         <span className="text-sm font-bold text-[var(--gold)] tabular-nums">{roundPoints} pts</span>
       </div>
-      <div className="overflow-x-auto">
+      {!collapsed && <div className="overflow-x-auto">
         <table className="w-full text-xs whitespace-nowrap">
           <thead>
             <tr className="border-b border-[var(--border)] text-[var(--text-muted)]">
@@ -127,40 +136,52 @@ export default function Scorecard({ roundNumber, holeResults, golfers, roundPoin
           <tbody>
             {golfers.map(g => {
               const scores = g.rounds[roundNumber - 1] ?? [];
-              if (scores.every(s => s === 0)) return null;
+              const hasScores = scores.some(s => s > 0);
               const front = scores.slice(0, 9);
               const back = scores.slice(9, 18);
               const frontTotal = front.reduce((a, b) => a + b, 0);
               const backTotal = back.reduce((a, b) => a + b, 0);
+              const isCut = g.isCut;
+              const cutThisRound = isCut && !hasScores; // Cut golfer in a round they didn't play
+              const notStarted = !hasScores && !isCut;
+
               return (
-                <tr key={g.name} className="border-b border-[var(--border)]/50">
-                  <td className={`${tdBase} text-left sticky left-0 bg-[var(--bg-card)] text-[var(--text-secondary)] truncate max-w-[140px] sm:max-w-[140px] max-w-[80px] z-20`}>
+                <tr key={g.name} className={`border-b border-[var(--border)]/50 ${cutThisRound || notStarted ? 'opacity-40' : ''}`}>
+                  <td className={`${tdBase} text-left sticky left-0 bg-[var(--bg-card)] truncate max-w-[140px] sm:max-w-[140px] max-w-[80px] z-20 ${cutThisRound ? 'text-[var(--text-muted)] line-through' : 'text-[var(--text-secondary)]'}`}>
                     <span className="hidden sm:inline">{g.name}</span>
                     <span className="sm:hidden">{g.name.split(' ').pop()}</span>
                   </td>
-                  {front.map((s, i) => (
-                    <td key={i} className={tdBase}>
-                      <div className="flex items-center justify-center">
-                        <ScoreCell score={s} par={pars[i]} />
-                      </div>
+                  {hasScores ? (
+                    <>
+                      {front.map((s, i) => (
+                        <td key={i} className={tdBase}>
+                          <div className="flex items-center justify-center">
+                            <ScoreCell score={s} par={pars[i]} />
+                          </div>
+                        </td>
+                      ))}
+                      <td className={`${tdBase} ${dividerCol} font-medium text-[var(--text-secondary)]`}>
+                        {frontTotal > 0 ? frontTotal : ''}
+                      </td>
+                      {back.map((s, i) => (
+                        <td key={i + 9} className={tdBase}>
+                          <div className="flex items-center justify-center">
+                            <ScoreCell score={s} par={pars[i + 9]} />
+                          </div>
+                        </td>
+                      ))}
+                      <td className={`${tdBase} ${dividerCol} font-medium text-[var(--text-secondary)]`}>
+                        {backTotal > 0 ? backTotal : ''}
+                      </td>
+                      <td className={`${tdBase} ${dividerCol} font-bold text-[var(--text-primary)]`}>
+                        {frontTotal + backTotal > 0 ? frontTotal + backTotal : ''}
+                      </td>
+                    </>
+                  ) : (
+                    <td colSpan={21} className={`${tdBase} text-left text-[var(--text-muted)] text-xs`}>
+                      {cutThisRound ? 'Missed the cut' : g.teeTime ? `Round not started. Tee time: ${g.teeTime}` : 'Round not started'}
                     </td>
-                  ))}
-                  <td className={`${tdBase} ${dividerCol} font-medium text-[var(--text-secondary)]`}>
-                    {frontTotal > 0 ? frontTotal : ''}
-                  </td>
-                  {back.map((s, i) => (
-                    <td key={i + 9} className={tdBase}>
-                      <div className="flex items-center justify-center">
-                        <ScoreCell score={s} par={pars[i + 9]} />
-                      </div>
-                    </td>
-                  ))}
-                  <td className={`${tdBase} ${dividerCol} font-medium text-[var(--text-secondary)]`}>
-                    {backTotal > 0 ? backTotal : ''}
-                  </td>
-                  <td className={`${tdBase} ${dividerCol} font-bold text-[var(--text-primary)]`}>
-                    {frontTotal + backTotal > 0 ? frontTotal + backTotal : ''}
-                  </td>
+                  )}
                 </tr>
               );
             })}
@@ -191,7 +212,7 @@ export default function Scorecard({ roundNumber, holeResults, golfers, roundPoin
             </tr>
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }
